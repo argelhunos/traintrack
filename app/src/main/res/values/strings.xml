@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Train Track</string>
+    <string name="platform">Platform </string>
+    <string name="my_app_widget_info">Info</string>
+    <string name="trip_appwidget_description">Departure board ready when you need it.</string>
+</resources>

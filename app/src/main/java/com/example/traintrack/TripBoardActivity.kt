@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -58,6 +59,9 @@ import com.example.traintrack.ui.theme.TrainTrackTheme
 import com.example.traintrack.ui.theme.md_theme_light_errorContainer
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 
 
 class MainActivity : ComponentActivity() {
@@ -97,13 +101,14 @@ fun NavController(viewModel: TripViewModel, modifier: Modifier, context: Context
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun TripScreen(viewModel: TripViewModel, navController: NavController, modifier: Modifier, context: Context) {
     val trips by viewModel.lines.observeAsState(emptyList())
     val metadata by viewModel.metadata.observeAsState()
-    val isLoading by viewModel.isLoading.observeAsState()
+
     val nextService by viewModel.nextService.observeAsState()
+    val refreshState = rememberPullRefreshState(refreshing = viewModel.isLoading, onRefresh = { viewModel.fetchTrips() })
 
     // remember state for lazy list of trips
     val state = rememberLazyListState()
@@ -135,7 +140,7 @@ fun TripScreen(viewModel: TripViewModel, navController: NavController, modifier:
                 .padding(padding)
                 .padding(start = 16.dp, end = 16.dp)
         ) {
-            if (isLoading == true) {
+            if (viewModel.isLoading) {
                 Box (
                     contentAlignment = Alignment.Center
                 ) {
@@ -161,39 +166,43 @@ fun TripScreen(viewModel: TripViewModel, navController: NavController, modifier:
                 } else {
                     Spacer(modifier = Modifier.size(16.dp))
 
-                    LazyColumn (
-                        state = state,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ){
-                        item() {
-                            LineName(
-                                lineName = userLine ?: trips.first().LineName,
-                                stopName = userStop ?: "",
-                                color = nameToColor.getValue(userLine ?: trips.first().LineName),
-                                abbreviation = nameToAbbreviation.getValue(userLine ?: trips.first().LineName)
-                            )
-                        }
+                    Box(Modifier.pullRefresh(refreshState)) {
+                        LazyColumn (
+                            state = state,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ){
+                            item() {
+                                LineName(
+                                    lineName = userLine ?: trips.first().LineName,
+                                    stopName = userStop ?: "",
+                                    color = nameToColor.getValue(userLine ?: trips.first().LineName),
+                                    abbreviation = nameToAbbreviation.getValue(userLine ?: trips.first().LineName)
+                                )
+                            }
 
-                        item() {
-                            Text("Next Departures: ")
-                        }
+                            item() {
+                                Text("Next Departures: ")
+                            }
 
-                        items(trips.sortedWith(compareBy { it.ScheduledDepartureTime }).filter { it.LineName == userLine }) {
-                            Trip(
-                                time = if (it.ComputedDepartureTime > it.ScheduledDepartureTime) {
-                                    it.ComputedDepartureTime
+                            items(trips.sortedWith(compareBy { it.ScheduledDepartureTime }).filter { it.LineName == userLine }) {
+                                Trip(
+                                    time = if (it.ComputedDepartureTime > it.ScheduledDepartureTime) {
+                                        it.ComputedDepartureTime
                                     } else {
-                                           it.ScheduledDepartureTime
+                                        it.ScheduledDepartureTime
                                     },
-                                platformNumber = it.ScheduledPlatform,
-                                destination = it.DirectionName.drop(5),
-                                isDelayed = it.ComputedDepartureTime > it.ScheduledDepartureTime
-                            )
+                                    platformNumber = it.ScheduledPlatform,
+                                    destination = it.DirectionName.drop(5),
+                                    isDelayed = it.ComputedDepartureTime > it.ScheduledDepartureTime
+                                )
+                            }
+
+                            item {
+                                Spacer(modifier = modifier.height(40.dp))
+                            }
                         }
 
-                        item {
-                            Spacer(modifier = modifier.height(40.dp))
-                        }
+                        PullRefreshIndicator(refreshing = viewModel.isLoading, state = refreshState, Modifier.align(Alignment.TopCenter))
                     }
                 }
             }

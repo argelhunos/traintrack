@@ -2,15 +2,15 @@ package com.example.traintrack
 
 import android.app.Application
 import android.util.Log
-import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.traintrack.SharedPreferencesManager.loadLine
 import com.example.traintrack.SharedPreferencesManager.loadStop
-import com.example.traintrack.data.lineToStations
 import com.example.traintrack.data.listOfLines
 import com.example.traintrack.data.stationToCode
 import com.example.traintrack.model.Line
@@ -37,13 +37,13 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
     val nextService: LiveData<NextService> = _nextService
 
     // mutable live data to indicate if loading has finished or not
-    private val _isLoading = MutableLiveData<Boolean>()
-    val isLoading: LiveData<Boolean> = _isLoading
+    private var _isLoading by mutableStateOf(false)
+    val isLoading = _isLoading
 
     // fetching line info and time
     fun fetchTrips() {
         viewModelScope.launch {
-            _isLoading.value = true
+            _isLoading = true
             try {
                 val response = repository.getTripsCustom(stationToCode[loadStop(getApplication<Application>().applicationContext)]!!)
                 val lines = response.NextService.Lines
@@ -58,7 +58,7 @@ class TripViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 Log.e(e.message, "error getting trips")
             } finally {
-                _isLoading.value = false
+                _isLoading = false
             }
         }
     }
